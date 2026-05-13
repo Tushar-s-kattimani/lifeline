@@ -95,8 +95,9 @@ function OnboardingContent() {
     }
     
     setIsSendingOtp(true);
-    // Generate a secure 4-digit password for the hidden link
-    const verificationPassword = Math.floor(1000 + Math.random() * 9000).toString();
+    // Generate a secure 6-digit code for both manual and link verification
+    const verificationPassword = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(verificationPassword); // Update local state for manual entry
     
     try {
       // Save password to Firestore temporarily
@@ -428,12 +429,27 @@ function OnboardingContent() {
               </div>
               
               {!isPhoneVerified && phoneNumber.length === 10 && (
-                <div className="col-span-2 p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-3 animate-in slide-in-from-top-2">
-                  <div className="flex items-center gap-3">
-                    <div className="h-2 w-2 bg-primary rounded-full animate-ping" />
-                    <p className="text-xs font-bold text-primary">Waiting for link verification...</p>
+                <div className="col-span-2 p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-4 animate-in slide-in-from-top-2">
+                  <div className="space-y-2">
+                    <Label className="font-black uppercase tracking-widest text-[10px] text-primary">Enter 6-Digit OTP Manually</Label>
+                    <div className="flex gap-2">
+                      <Input 
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="· · · · · ·"
+                        className="h-12 text-center text-2xl tracking-[0.5em] font-black flex-1"
+                      />
+                      <Button type="button" onClick={handleVerifyOtp} className="h-12 font-black px-6">Confirm</Button>
+                    </div>
                   </div>
-                  <p className="text-[10px] text-muted-foreground">We've sent a secure link to your phone. Once you enter the password on that page, this screen will update automatically.</p>
+                  
+                  <div className="pt-2 border-t border-primary/10 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 bg-primary rounded-full animate-ping" />
+                      <p className="text-[10px] font-bold text-primary">Or use the link sent to your phone</p>
+                    </div>
+                    <button type="button" onClick={() => handleSendOtp('sms')} className="text-[10px] font-bold text-muted-foreground hover:text-primary underline">Resend Code</button>
+                  </div>
                 </div>
               )}
 

@@ -20,10 +20,26 @@ function VerifyPhoneContent() {
   
   const uid = searchParams.get("uid");
   const otpParam = searchParams.get("otp");
-  const [passwordInput, setPasswordInput] = useState(otpParam || "");
+  const [passwordInput, setPasswordInput] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [dbOtp, setDbOtp] = useState<string | null>(null);
+  const [phoneNumber, setPhoneNumber] = useState<string | null>(null);
+
+  // Fetch data to show the user
+  useEffect(() => {
+    if (!db || !uid) return;
+    const fetchInfo = async () => {
+      const snap = await getDoc(doc(db, "users", uid));
+      if (snap.exists()) {
+        const data = snap.data();
+        setDbOtp(data.tempVerificationPassword);
+        setPhoneNumber(data.phoneNumber);
+      }
+    };
+    fetchInfo();
+  }, [db, uid]);
 
   // Auto-verify if OTP is in URL
   useEffect(() => {
@@ -140,20 +156,28 @@ function VerifyPhoneContent() {
           <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
             <ShieldCheck className="h-10 w-10 text-primary" />
           </div>
-          <CardTitle className="text-3xl font-black tracking-tight">Secure Access</CardTitle>
-          <CardDescription className="text-base font-bold">Enter the password from your message to verify your phone.</CardDescription>
+          <CardTitle className="text-3xl font-black tracking-tight">Phone Verification</CardTitle>
+          <CardDescription className="text-base font-bold">Verify access for: <span className="text-primary">{phoneNumber || "Loading..."}</span></CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
+          {dbOtp && (
+            <div className="p-6 bg-primary/5 rounded-3xl border-2 border-dashed border-primary/20 text-center space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Your 6-Digit OTP</p>
+              <p className="text-5xl font-black tracking-[0.3em] text-primary tabular-nums">{dbOtp}</p>
+              <p className="text-[10px] font-bold text-muted-foreground">Type this code in the app OR click below</p>
+            </div>
+          )}
+
           <form onSubmit={handleVerify} className="space-y-6">
             <div className="space-y-2">
-              <Label className="font-black uppercase tracking-widest text-[10px] text-muted-foreground ml-1">Verification Password</Label>
+              <Label className="font-black uppercase tracking-widest text-[10px] text-muted-foreground ml-1">Confirm with Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input 
                   type="password" 
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
-                  placeholder="····" 
+                  placeholder="······" 
                   className="pl-10 h-14 text-2xl tracking-[0.5em] font-black text-center"
                   required
                 />
@@ -162,7 +186,7 @@ function VerifyPhoneContent() {
             </div>
 
             <Button type="submit" className="w-full h-14 text-xl font-black shadow-lg" disabled={isVerifying || !passwordInput}>
-              {isVerifying ? <Loader2 className="h-6 w-6 animate-spin" /> : "Verify Identity"}
+              {isVerifying ? <Loader2 className="h-6 w-6 animate-spin" /> : "Verify Identity Now"}
             </Button>
           </form>
         </CardContent>
