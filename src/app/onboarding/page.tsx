@@ -225,7 +225,7 @@ function OnboardingContent() {
     }
 
     if (!isPhoneVerified) {
-      toast({ variant: "destructive", title: "Verification Required", description: "Please verify your phone number via OTP first." });
+      toast({ variant: "destructive", title: "Verification Required", description: "Please verify your identity via the email link first." });
       return;
     }
 
@@ -532,7 +532,7 @@ function OnboardingContent() {
               </div>
             )}
 
-            <Button type="submit" className="w-full h-14 text-xl font-black shadow-lg heartbeat" disabled={isSubmitting || !location}>
+            <Button type="submit" className="w-full h-14 text-xl font-black shadow-lg heartbeat" disabled={isSubmitting || !location || !isPhoneVerified}>
               {isSubmitting ? <Loader2 className="h-6 w-6 animate-spin" /> : (profile ? "Update Profile" : "Become a Hero")}
             </Button>
           </form>
