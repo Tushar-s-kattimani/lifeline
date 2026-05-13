@@ -123,13 +123,18 @@ export async function sendEmailOTPAction(email: string, code: string) {
   const resend = new Resend(process.env.RESEND_API_KEY);
   
   if (!process.env.RESEND_API_KEY) {
+    console.warn('!!! RESEND_API_KEY IS MISSING !!! Check your .env file and RESTART the server.');
     console.warn('--- EMAIL SIMULATION ---');
     console.warn(`SENDING OTP ${code} TO ${email}`);
     return { success: true, simulated: true };
   }
 
   try {
-    console.log(`Attempting to send Email OTP to: ${email}...`);
+    console.log(`[Resend] Attempting to send OTP to: ${email}`);
+    if (!email || !email.includes('@')) {
+      console.error('[Resend] Invalid email address provided.');
+      return { success: false };
+    }
     const data = await resend.emails.send({
       from: 'LifeLine <onboarding@resend.dev>',
       to: email,
