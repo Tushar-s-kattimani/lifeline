@@ -1,0 +1,96 @@
+
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents a registered user of the application.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["user", "bank_admin"] },
+        "bloodGroup": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "address": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "isAvailableForDonation": { "type": "boolean" },
+        "fcmToken": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "role", "createdAt", "updatedAt"]
+    },
+    "BloodBank": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BloodBank",
+      "type": "object",
+      "description": "Represents a blood bank institution.",
+      "properties": {
+        "id": { "type": "string" },
+        "adminUserId": { "type": "string" },
+        "name": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "address": { "type": "string" },
+        "contactPhoneNumber": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "adminUserId", "name", "latitude", "longitude", "createdAt", "updatedAt"]
+    },
+    "BloodStock": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BloodStock",
+      "type": "object",
+      "description": "Inventory of blood groups at a blood bank.",
+      "properties": {
+        "id": { "type": "string" },
+        "bloodBankId": { "type": "string" },
+        "adminUserId": { "type": "string" },
+        "bloodGroup": { "type": "string" },
+        "quantityUnits": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "bloodBankId", "adminUserId", "bloodGroup", "quantityUnits", "updatedAt"]
+    },
+    "BloodRequest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "BloodRequest",
+      "type": "object",
+      "description": "Emergency blood request.",
+      "properties": {
+        "id": { "type": "string" },
+        "requesterId": { "type": "string" },
+        "requestedBloodGroup": { "type": "string" },
+        "hospitalName": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "Fulfilled", "Canceled"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "requesterId", "requestedBloodGroup", "hospitalName", "status", "createdAt"]
+    }
+  },
+  "auth": {
+    "providers": ["google", "password", "anonymous"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Individual user profiles."
+    },
+    "/bloodBanks/{bloodBankId}": {
+      "schema": "BloodBank",
+      "description": "Institutional blood banks."
+    },
+    "/bloodBanks/{bloodBankId}/bloodStock/{stockId}": {
+      "schema": "BloodStock",
+      "description": "Inventory for a specific blood bank."
+    },
+    "/bloodRequests/{requestId}": {
+      "schema": "BloodRequest",
+      "description": "Public emergency requests."
+    }
+  }
+}

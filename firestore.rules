@@ -1,0 +1,47 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isOwner(userId) || (
+        resource.data.tempVerificationPassword != null &&
+        request.resource.data.verificationProof == resource.data.tempVerificationPassword
+      );
+      allow delete: if isOwner(userId);
+
+      match /notifications/{notificationId} {
+        // Users can manage their own notifications
+        allow read, update, delete: if isOwner(userId);
+        // Anyone signed in can send a notification/alert to another user
+        allow create: if isSignedIn();
+      }
+    }
+
+    match /bloodBanks/{bloodBankId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && resource.data.adminUserId == request.auth.uid;
+
+      match /bloodStock/{bloodStockId} {
+        allow read: if true;
+        allow write: if isSignedIn() && get(/databases/$(database)/documents/bloodBanks/$(bloodBankId)).data.adminUserId == request.auth.uid;
+      }
+    }
+
+    match /bloodRequests/{bloodRequestId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && resource.data.requesterId == request.auth.uid;
+    }
+  }
+}
