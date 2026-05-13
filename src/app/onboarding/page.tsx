@@ -65,7 +65,6 @@ function OnboardingContent() {
     }
   }, [user, isUserLoading, profile, router, searchParams]);
 
-  // INITIALIZATION: Sync local state with existing profile data
   useEffect(() => {
     if (profile && !isInitialized) {
       setSelectedRole(profile.role as "user" | "bank_admin");
@@ -80,7 +79,6 @@ function OnboardingContent() {
       }
       if (profile.phoneNumber) {
         setPhoneNumber(profile.phoneNumber);
-        // Assume verified if it exists in profile for now, or check a field
         setIsPhoneVerified(profile.isPhoneVerified || false);
       }
       setIsInitialized(true);
