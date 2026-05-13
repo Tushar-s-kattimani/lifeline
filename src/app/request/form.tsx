@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle, Loader2, Users, Navigation, Building2, MapPin, Phone, Send, MessageSquare, MessageCircle } from "lucide-react";
+import { CheckCircle, Loader2, Users, Navigation, Building2, MapPin, Phone, Send, MessageSquare, MessageCircle, AlertCircle } from "lucide-react";
 import { useFirestore, useUser, addDocumentNonBlocking, setDocumentNonBlocking, useDoc, useMemoFirebase } from "@/firebase";
 import { collection, getDocs, query, where, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +41,7 @@ function isBloodCompatible(donor: string, recipient: string): boolean {
 export function RequestForm() {
   const db = useFirestore();
   const { user } = useUser();
+  const router = useRouter();
   const { toast } = useToast();
   
   const userRef = useMemoFirebase(() => (db && user ? doc(db, 'users', user.uid) : null), [db, user]);
@@ -150,6 +151,16 @@ export function RequestForm() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!db || !user) return;
+    
+    if (!userProfile?.isPhoneVerified) {
+      toast({ 
+        variant: "destructive", 
+        title: "Verification Required", 
+        description: "You must verify your phone number before making a blood request." 
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     const formData = new FormData(e.currentTarget);
     const bloodGroup = formData.get('bloodGroup') as string;
@@ -334,6 +345,31 @@ export function RequestForm() {
           </div>
         </div>
         <Button variant="ghost" className="w-full font-bold" onClick={() => setStatus('idle')}>Create New Request</Button>
+      </div>
+    );
+  }
+
+  if (!userProfile?.isPhoneVerified) {
+    return (
+      <div className="space-y-6">
+        <Alert variant="destructive" className="bg-destructive/5 border-destructive/20 p-6 rounded-2xl">
+          <AlertCircle className="h-6 w-6" />
+          <AlertTitle className="text-lg font-black uppercase tracking-tight ml-2">Verification Required</AlertTitle>
+          <AlertDescription className="text-sm font-bold mt-2 ml-2">
+            For emergency security, you must verify your phone number before broadcasting blood requests.
+          </AlertDescription>
+        </Alert>
+        
+        <div className="p-8 border-2 border-dashed border-primary/20 rounded-3xl text-center space-y-4 bg-muted/5">
+          <Phone className="h-12 w-12 mx-auto text-primary/40 animate-pulse" />
+          <div className="space-y-1">
+            <p className="text-lg font-black">Phone Not Verified</p>
+            <p className="text-xs text-muted-foreground font-bold">Please complete your profile verification in settings.</p>
+          </div>
+          <Button className="w-full h-12 font-black shadow-lg" onClick={() => router.push('/onboarding')}>
+            Verify My Phone Now
+          </Button>
+        </div>
       </div>
     );
   }
