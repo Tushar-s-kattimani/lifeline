@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useFirestore, useDoc, setDocumentNonBlocking } from "@/firebase";
 import { doc, getDoc } from "firebase/firestore";
-import { ShieldCheck, Lock, Loader2, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Lock, Loader2, CheckCircle2, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 function VerifyPhoneContent() {
@@ -97,28 +97,10 @@ function VerifyPhoneContent() {
     }
   };
 
-  const handleFinalVerify = async () => {
-    if (!db || !uid || !dbOtp) return;
-    setIsVerifying(true);
-    try {
-      const userRef = doc(db, "users", uid);
-      await setDocumentNonBlocking(userRef, {
-        isPhoneVerified: true,
-        tempAccessPassword: null,
-        tempVerificationOtp: null,
-        verificationProof: passwordInput
-      }, { merge: true });
-      
-      setIsSuccess(true);
-      toast({ title: "Phone Verified!", description: "You can now return to the app." });
-      setTimeout(() => {
-        window.location.href = window.location.origin + "/home";
-      }, 2000);
-    } catch (e) {
-      setError("Final verification failed. Please try typing the OTP in the app.");
-    } finally {
-      setIsVerifying(false);
-    }
+  const handleCopyCode = () => {
+    if (!dbOtp) return;
+    navigator.clipboard.writeText(dbOtp);
+    toast({ title: "Copied!", description: "Verification code copied to clipboard." });
   };
 
   if (!uid) {
@@ -192,11 +174,11 @@ function VerifyPhoneContent() {
               <div className="p-8 bg-green-50 rounded-3xl border-2 border-green-200 text-center space-y-3">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-green-600">Your Verification Code</p>
                 <p className="text-6xl font-black tracking-[0.3em] text-green-700 tabular-nums">{dbOtp}</p>
-                <p className="text-xs font-bold text-green-600/70">Enter this 6-digit code in the app</p>
+                <p className="text-xs font-bold text-green-600/70">Copy this code and paste it in the app</p>
               </div>
 
-              <Button onClick={handleFinalVerify} className="w-full h-16 text-xl font-black bg-green-600 hover:bg-green-700 shadow-xl" disabled={isVerifying}>
-                {isVerifying ? <Loader2 className="h-6 w-6 animate-spin" /> : "Finish Verification"}
+              <Button onClick={handleCopyCode} className="w-full h-16 text-xl font-black bg-primary hover:bg-primary/90 shadow-xl gap-2">
+                <Copy className="h-6 w-6" /> Copy Verification Code
               </Button>
             </div>
           )}
