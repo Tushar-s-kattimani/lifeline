@@ -77,6 +77,7 @@ function OnboardingContent() {
           name: profile.address || "Saved Location"
         });
         setSearchQuery(profile.address || "");
+      }
       if (profile.phoneNumber) {
         setPhoneNumber(profile.phoneNumber);
       }
