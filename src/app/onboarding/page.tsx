@@ -385,6 +385,9 @@ function OnboardingContent() {
                   onChange={(e) => {
                     const val = e.target.value.replace(/\D/g, '').slice(0, 10);
                     setPhoneNumber(val);
+                    if (val !== profile?.phoneNumber) {
+                      setIsPhoneVerified(false);
+                    }
                   }}
                   placeholder="9876543210" 
                   required 
