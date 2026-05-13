@@ -70,15 +70,26 @@ export async function requestBlood(prevState: State, formData: FormData): Promis
 export async function sendOTPAction(phoneNumber: string, message: string, type: 'sms' | 'whatsapp' = 'sms') {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const fromNumber = process.env.TWILIO_PHONE_NUMBER; // For SMS
   const fromWhatsApp = process.env.TWILIO_WHATSAPP_NUMBER; // e.g., whatsapp:+14155238886
 
-  const rawNumber = phoneNumber.replace(/\D/g, '');
-  const fullNumber = type === 'whatsapp' ? `whatsapp:+91${rawNumber}` : `+91${rawNumber}`;
+  // Robust phone number formatting
+  let formattedNumber = phoneNumber.trim();
+  if (!formattedNumber.startsWith('+')) {
+    // If it's a 10-digit number, default to +91
+    if (formattedNumber.length === 10) {
+      formattedNumber = `+91${formattedNumber}`;
+    } else {
+      // Otherwise just prepend +
+      formattedNumber = `+${formattedNumber.replace(/\D/g, '')}`;
+    }
+  }
+  
+  const fullNumber = type === 'whatsapp' ? `whatsapp:${formattedNumber}` : formattedNumber;
   const sender = type === 'whatsapp' ? fromWhatsApp : fromNumber;
 
   if (!accountSid || !authToken || !sender) {
-    console.warn(`--- TWILIO ${type.toUpperCase()} SIMULATION ---`);
+    console.warn(`--- TWILIO ${type.toUpperCase()} SIMULATION MODE ---`);
+    console.warn(`REASON: ${!sender ? 'Missing Twilio Phone Number' : 'Missing credentials'}`);
     console.warn(`TO: ${fullNumber}`);
     console.warn(`MESSAGE: ${message}`);
     return { success: true, simulated: true };
