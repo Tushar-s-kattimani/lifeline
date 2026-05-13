@@ -417,9 +417,8 @@ function OnboardingContent() {
                     )}
                   </div>
                 </div>
-              </div>
-              
-              {!isPhoneVerified && (
+                
+                {!isPhoneVerified && (
                 <div className="col-span-2 p-6 bg-primary/5 border-2 border-dashed border-primary/20 rounded-3xl space-y-4 animate-in slide-in-from-top-2 text-center">
                   <div className="space-y-2">
                     <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
