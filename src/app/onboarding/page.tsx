@@ -454,6 +454,16 @@ function OnboardingContent() {
                       />
                       <Button type="button" onClick={handleVerifyOtp} className="h-12 font-black px-6">Confirm</Button>
                     </div>
+                    <div className="pt-2 border-t border-primary/10 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 bg-primary rounded-full animate-ping" />
+                        <p className="text-[10px] font-bold text-primary">Code is valid for 10 minutes</p>
+                      </div>
+                      <button type="button" onClick={handleSendOtp} disabled={isSendingOtp} className="text-[10px] font-bold text-muted-foreground hover:text-primary underline flex items-center gap-1">
+                        {isSendingOtp ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                        Resend Email Code
+                      </button>
+                    </div>
                     <p className="text-[10px] font-bold text-muted-foreground mt-2">Check your inbox (and spam folder) for the code.</p>
                   </div>
                 </div>

@@ -129,7 +129,8 @@ export async function sendEmailOTPAction(email: string, code: string) {
   }
 
   try {
-    await resend.emails.send({
+    console.log(`Attempting to send Email OTP to: ${email}...`);
+    const data = await resend.emails.send({
       from: 'LifeLine <onboarding@resend.dev>',
       to: email,
       subject: 'Your LifeLine Verification Code',
@@ -147,9 +148,10 @@ export async function sendEmailOTPAction(email: string, code: string) {
         </div>
       `
     });
+    console.log('Resend Response Data:', data);
     return { success: true };
   } catch (e) {
-    console.error('Resend Error:', e);
+    console.error('CRITICAL Resend Error:', e);
     return { success: false };
   }
 }
