@@ -95,22 +95,24 @@ function OnboardingContent() {
     }
     
     setIsSendingOtp(true);
-    // Generate a secure 6-digit code for both manual and link verification
-    const verificationPassword = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(verificationPassword); // Update local state for manual entry
+    // Generate a 4-digit password for the link and a 6-digit OTP for the app
+    const accessPassword = Math.floor(1000 + Math.random() * 9000).toString();
+    const verificationOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(verificationOtp); 
     
     try {
-      // Save password to Firestore temporarily
+      // Save both to Firestore
       await setDocumentNonBlocking(doc(db, "users", user.uid), {
-        tempVerificationPassword: verificationPassword,
-        phoneNumber: phoneNumber, // Save number intent
+        tempAccessPassword: accessPassword,
+        tempVerificationOtp: verificationOtp,
+        phoneNumber: phoneNumber,
         isPhoneVerified: false
       }, { merge: true });
 
-      // Create the secure verification link (OTP is hidden from message)
+      // Create the secure verification link
       const baseUrl = window.location.origin.replace('localhost', '10.41.186.215').replace('127.0.0.1', '10.41.186.215');
       const verifyLink = `${baseUrl}/verify-phone?uid=${user.uid}`;
-      const message = `LifeLine Secure Verification:\n\nLink: ${verifyLink}\n\n(Click the link to view your security code and verify)`;
+      const message = `LifeLine Secure Verification:\n\nLink: ${verifyLink}\n\nAccess Password: ${accessPassword}`;
       
       const fullNumber = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
 
