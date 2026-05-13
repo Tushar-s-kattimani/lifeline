@@ -390,10 +390,9 @@ function OnboardingContent() {
               <Input name="name" defaultValue={profile?.name} placeholder={selectedRole === 'bank_admin' ? "City General Blood Bank" : "John Doe"} className="h-12 font-bold" required />
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="font-black uppercase tracking-widest text-[10px] text-muted-foreground ml-1">Phone (10 Digits)</Label>
-                <div className="flex gap-2">
+              <div className="col-span-2 space-y-3">
+                <Label className="font-black uppercase tracking-widest text-[11px] text-muted-foreground ml-1">Phone Number (10 Digits)</Label>
+                <div className="space-y-3">
                   <Input 
                     name="phone" 
                     type="tel"
@@ -406,31 +405,31 @@ function OnboardingContent() {
                     placeholder="9876543210" 
                     required 
                     disabled={isPhoneVerified}
-                    className="h-12 font-bold flex-1"
+                    className="h-20 text-4xl tracking-[0.2em] font-black text-center border-2 border-primary/20 focus:border-primary transition-all rounded-3xl"
                   />
                   {!isPhoneVerified ? (
-                    <div className="flex gap-2">
+                    <div className="grid grid-cols-2 gap-3">
                       <Button 
                         type="button" 
                         onClick={() => handleSendOtp('sms')} 
                         disabled={isSendingOtp || phoneNumber.length !== 10}
-                        className="h-12 font-bold px-3"
+                        className="h-14 font-black text-lg shadow-lg rounded-2xl"
                       >
-                        {isSendingOtp ? <Loader2 className="h-4 w-4 animate-spin" /> : "Verify SMS"}
+                        {isSendingOtp ? <Loader2 className="h-6 w-6 animate-spin" /> : "Verify SMS"}
                       </Button>
                       <Button 
                         type="button" 
                         variant="secondary"
                         onClick={() => handleSendOtp('whatsapp')} 
                         disabled={isSendingOtp || phoneNumber.length !== 10}
-                        className="h-12 font-bold px-3 bg-green-500 hover:bg-green-600 text-white border-none"
+                        className="h-14 font-black text-lg shadow-lg bg-green-500 hover:bg-green-600 text-white border-none rounded-2xl"
                       >
                         WhatsApp
                       </Button>
                     </div>
                   ) : (
-                    <div className="h-12 flex items-center px-3 bg-green-50 text-green-600 rounded-md border border-green-200">
-                      <CheckCircle2 className="h-5 w-5" />
+                    <div className="h-14 flex items-center justify-center gap-2 bg-green-50 text-green-600 rounded-2xl border-2 border-green-200 font-black uppercase text-xs tracking-[0.2em]">
+                      <CheckCircle2 className="h-6 w-6" /> Phone Number Verified
                     </div>
                   )}
                 </div>
