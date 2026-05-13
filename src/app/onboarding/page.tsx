@@ -115,24 +115,35 @@ function OnboardingContent() {
       const message = `LifeLine Secure Verification:\n\nLink: ${verifyLink}\n\nAccess Password: ${accessPassword}`;
       
       const fullNumber = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
+      const type = method;
 
-      if (method === 'whatsapp') {
-        window.open(`https://wa.me/${fullNumber.replace('+', '')}?text=${encodeURIComponent(message)}`, '_blank');
-      } else {
-        const smsUrl = /iPad|iPhone|iPod/.test(navigator.userAgent) 
-          ? `sms:${fullNumber}&body=${encodeURIComponent(message)}`
-          : `sms:${fullNumber}?body=${encodeURIComponent(message)}`;
-        window.open(smsUrl, '_blank');
-      }
+      // Call the server action to send the message automatically (Twilio)
+      const result = await sendOTPAction(fullNumber, message, type);
       
+      if (result.success) {
+        if (result.simulated) {
+          toast({ 
+            title: `${type.toUpperCase()} Sent (Simulated)`, 
+            description: "Check your terminal to see the verification link." 
+          });
+        } else {
+          toast({ 
+            title: `${type.toUpperCase()} Sent!`, 
+            description: `A secure verification link was sent to your ${type === 'sms' ? 'phone' : 'WhatsApp'}.` 
+          });
+        }
+      } else {
+        toast({ 
+          variant: "destructive", 
+          title: "Sending Failed", 
+          description: "Could not send the message. Please check your network or try again." 
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      toast({ variant: "destructive", title: "Error", description: "Failed to process verification request." });
+    } finally {
       setIsSendingOtp(false);
-      toast({
-        title: "Security Link Sent",
-        description: "Please check your messages for the link and password.",
-      });
-    } catch (e) {
-      setIsSendingOtp(false);
-      toast({ variant: "destructive", title: "Error", description: "Failed to initialize secure verification." });
     }
   };
 

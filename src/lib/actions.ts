@@ -67,17 +67,20 @@ export async function requestBlood(prevState: State, formData: FormData): Promis
   }
 }
 
-export async function sendOTPAction(phoneNumber: string, code: string) {
+export async function sendOTPAction(phoneNumber: string, message: string, type: 'sms' | 'whatsapp' = 'sms') {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+  const fromNumber = process.env.TWILIO_PHONE_NUMBER; // For SMS
+  const fromWhatsApp = process.env.TWILIO_WHATSAPP_NUMBER; // e.g., whatsapp:+14155238886
 
-  const fullNumber = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
+  const rawNumber = phoneNumber.replace(/\D/g, '');
+  const fullNumber = type === 'whatsapp' ? `whatsapp:+91${rawNumber}` : `+91${rawNumber}`;
+  const sender = type === 'whatsapp' ? fromWhatsApp : fromNumber;
 
-  if (!accountSid || !authToken || !fromNumber) {
-    console.warn('--- TWILIO SIMULATION ---');
-    console.warn(`SENDING OTP ${code} TO ${fullNumber}`);
-    console.warn('To enable real SMS, add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER to your .env file.');
+  if (!accountSid || !authToken || !sender) {
+    console.warn(`--- TWILIO ${type.toUpperCase()} SIMULATION ---`);
+    console.warn(`TO: ${fullNumber}`);
+    console.warn(`MESSAGE: ${message}`);
     return { success: true, simulated: true };
   }
 
@@ -90,8 +93,8 @@ export async function sendOTPAction(phoneNumber: string, code: string) {
       },
       body: new URLSearchParams({
         To: fullNumber,
-        From: fromNumber,
-        Body: `Your LifeLine verification code is: ${code}. Please do not share this with anyone.`,
+        From: sender,
+        Body: message,
       }),
     });
 
