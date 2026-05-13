@@ -99,8 +99,29 @@ function VerifyPhoneContent() {
 
   const handleCopyCode = () => {
     if (!dbOtp) return;
-    navigator.clipboard.writeText(dbOtp);
-    toast({ title: "Copied!", description: "Verification code copied to clipboard." });
+    
+    // Fallback for insecure contexts (non-HTTPS local IP)
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(dbOtp);
+      toast({ title: "Copied!", description: "Verification code copied to clipboard." });
+    } else {
+      // Legacy fallback using a hidden textarea
+      const textArea = document.createElement("textarea");
+      textArea.value = dbOtp;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      textArea.style.top = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        toast({ title: "Copied!", description: "Code copied (legacy mode)." });
+      } catch (err) {
+        toast({ variant: "destructive", title: "Copy Failed", description: "Please select and copy the code manually." });
+      }
+      document.body.removeChild(textArea);
+    }
   };
 
   if (!uid) {
