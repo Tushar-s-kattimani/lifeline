@@ -471,7 +471,7 @@ function OnboardingContent() {
                   </Select>
                 </div>
               )}
-            </div>
+
 
             <div className="space-y-3">
               <div className="flex justify-between items-center px-1">
