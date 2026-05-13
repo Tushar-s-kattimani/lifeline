@@ -19,10 +19,43 @@ function VerifyPhoneContent() {
   const { toast } = useToast();
   
   const uid = searchParams.get("uid");
-  const [passwordInput, setPasswordInput] = useState("");
+  const otpParam = searchParams.get("otp");
+  const [passwordInput, setPasswordInput] = useState(otpParam || "");
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState("");
+
+  // Auto-verify if OTP is in URL
+  useEffect(() => {
+    if (otpParam && uid && db && !isSuccess && !isVerifying) {
+      autoVerify(otpParam);
+    }
+  }, [otpParam, uid, db]);
+
+  const autoVerify = async (otp: string) => {
+    setIsVerifying(true);
+    try {
+      const userRef = doc(db, "users", uid!);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists() && userSnap.data().tempVerificationPassword === otp) {
+        await setDocumentNonBlocking(userRef, {
+          isPhoneVerified: true,
+          tempVerificationPassword: null,
+          verificationProof: otp
+        }, { merge: true });
+        setIsSuccess(true);
+        setTimeout(() => {
+          window.location.href = "http://10.41.186.215:9003/home";
+        }, 2000);
+      } else {
+        setError("Invalid or expired verification link.");
+      }
+    } catch (e) {
+      setError("Verification failed. Please try manual entry.");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();

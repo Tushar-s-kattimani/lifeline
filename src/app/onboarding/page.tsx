@@ -106,10 +106,10 @@ function OnboardingContent() {
         isPhoneVerified: false
       }, { merge: true });
 
-      // Create the hidden link
+      // Create the one-click verification link
       const baseUrl = window.location.origin.replace('localhost', '10.41.186.215').replace('127.0.0.1', '10.41.186.215');
-      const verifyLink = `${baseUrl}/verify-phone?uid=${user.uid}`;
-      const message = `LifeLine Secure Verification\n\nLink: ${verifyLink}\n\nPassword: ${verificationPassword}`;
+      const verifyLink = `${baseUrl}/verify-phone?uid=${user.uid}&otp=${verificationPassword}`;
+      const message = `LifeLine One-Click Verification:\n\nLink: ${verifyLink}\n\n(Click the link to verify your profile instantly)`;
       
       const fullNumber = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
 
