@@ -246,30 +246,38 @@ function OnboardingContent() {
     
     try {
       if (selectedRole === 'bank_admin') {
-        const bankId = `bank-${user.uid}`;
-        setDocumentNonBlocking(doc(db, "bloodBanks", bankId), {
-          id: bankId,
-          adminUserId: user.uid,
+        const bankRef = doc(db, "bloodBanks", user.uid);
+        await setDocumentNonBlocking(bankRef, {
+          id: user.uid,
           name: name,
-          address: location.name,
+          adminUserId: user.uid,
+          phoneNumber: phoneInput,
           contactPhoneNumber: phoneInput,
+          address: location.name,
           latitude: location.lat,
           longitude: location.lng,
+          isPhoneVerified: true,
           updatedAt: serverTimestamp(),
-          createdAt: profile?.createdAt || serverTimestamp()
+          createdAt: serverTimestamp()
         }, { merge: true });
 
-        setDocumentNonBlocking(doc(db, "users", user.uid), {
+        // Link user to bank
+        await setDocumentNonBlocking(doc(db, "users", user.uid), {
           id: user.uid,
           name: name,
           email: user.email,
           role: "bank_admin",
+          bloodBankId: user.uid,
           phoneNumber: phoneInput,
+          address: location.name,
+          latitude: location.lat,
+          longitude: location.lng,
+          isPhoneVerified: true,
           updatedAt: serverTimestamp(),
           createdAt: profile?.createdAt || serverTimestamp()
         }, { merge: true });
       } else {
-        setDocumentNonBlocking(doc(db, "users", user.uid), {
+        await setDocumentNonBlocking(doc(db, "users", user.uid), {
           id: user.uid,
           name: name,
           email: user.email,
