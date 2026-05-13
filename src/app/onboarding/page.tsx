@@ -442,9 +442,8 @@ function OnboardingContent() {
                     )}
                   </div>
                 </div>
-              </div>
-              
-              {!isPhoneVerified && showOtpInput && (
+                
+                {!isPhoneVerified && showOtpInput && (
                 <div className="col-span-2 p-6 bg-primary/5 border-2 border-dashed border-primary/20 rounded-3xl space-y-4 animate-in slide-in-from-top-2 text-center">
                   <div className="space-y-2">
                     <Label className="font-black uppercase tracking-widest text-xs text-primary">Enter 6-Digit Email Code</Label>
