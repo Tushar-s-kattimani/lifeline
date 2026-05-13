@@ -11,15 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useUser, useFirestore, useDoc, useMemoFirebase, useAuth, setDocumentNonBlocking } from "@/firebase";
 import { doc, serverTimestamp } from "firebase/firestore";
-import { 
-  RecaptchaVerifier, 
-  ConfirmationResult,
-  linkWithPhoneNumber
-} from "firebase/auth";
 import { signOut, sendEmailVerification } from "firebase/auth";
-import { HeartPulse, CheckCircle2, Loader2, MapPin, Search, Navigation, Building2, User, ChevronLeft, Mail, RefreshCw, LogOut, AlertCircle } from "lucide-react";
+import { HeartPulse, CheckCircle2, Loader2, MapPin, Search, Navigation, Building2, User, ChevronLeft, Mail, RefreshCw, LogOut, MailCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { sendOTPAction } from "@/lib/actions";
+import { sendEmailOTPAction } from "@/lib/actions";
 
 function OnboardingContent() {
   const router = useRouter();
@@ -43,10 +38,9 @@ function OnboardingContent() {
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+  const [generatedOtp, setGeneratedOtp] = useState("");
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-  const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
 
   const userRef = useMemoFirebase(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: profile, isLoading: isProfileLoading } = useDoc(userRef);
@@ -93,75 +87,68 @@ function OnboardingContent() {
     }
   }, [profile, isInitialized]);
 
-  const handleSendOtp = async (method: 'sms' | 'whatsapp' = 'sms') => {
-    if (!auth || !user || !phoneNumber) return;
-    if (phoneNumber.length !== 10) {
-      toast({ variant: "destructive", title: "Invalid Phone", description: "Enter 10 digits first." });
-      return;
-    }
+  const handleSendOtp = async () => {
+    if (!user || !db || !user.email) return;
     
     setIsSendingOtp(true);
+    // Generate a 6-digit OTP
+    const verificationOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(verificationOtp); 
+    
     try {
-      // Initialize Recaptcha
-      let verifier = recaptchaVerifier;
-      if (!verifier) {
-        verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible',
-          callback: () => {
-            console.log('Recaptcha verified');
-          }
-        });
-        setRecaptchaVerifier(verifier);
-      }
+      // Save OTP to Firestore temporarily
+      await setDocumentNonBlocking(doc(db, "users", user.uid), {
+        tempVerificationOtp: verificationOtp,
+        isPhoneVerified: false
+      }, { merge: true });
 
-      const fullNumber = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
+      // Send the Email OTP
+      const result = await sendEmailOTPAction(user.email, verificationOtp);
       
-      // Use Firebase Phone Auth to send the code
-      // linkWithPhoneNumber adds the phone to the existing user profile
-      const result = await linkWithPhoneNumber(user, fullNumber, verifier);
-      setConfirmationResult(result);
-      
-      toast({ 
-        title: "OTP Sent!", 
-        description: "A free Firebase verification code was sent to your phone via SMS." 
-      });
-    } catch (error: any) {
-      console.error(error);
-      if (error.code === 'auth/provider-already-linked') {
-        setIsPhoneVerified(true);
-        toast({ title: "Already Verified", description: "This phone number is already linked to your account." });
+      if (result.success) {
+        setShowOtpInput(true);
+        if (result.simulated) {
+          toast({ 
+            title: "Email Sent (Simulated)", 
+            description: `Check terminal. Code: ${verificationOtp}` 
+          });
+        } else {
+          toast({ 
+            title: "Email Sent!", 
+            description: "A free verification code was sent to your email address." 
+          });
+        }
       } else {
         toast({ 
           variant: "destructive", 
           title: "Sending Failed", 
-          description: error.message || "Could not send verification code." 
+          description: "Could not send the email. Please check your network or try again." 
         });
       }
+    } catch (error) {
+      console.error(error);
+      toast({ variant: "destructive", title: "Error", description: "Failed to process verification request." });
     } finally {
       setIsSendingOtp(false);
     }
   };
 
   const handleVerifyOtp = async () => {
-    if (!confirmationResult || !otpCode) return;
+    if (!otpCode || !generatedOtp) return;
     
-    try {
-      setIsSubmitting(true);
-      await confirmationResult.confirm(otpCode);
+    if (otpCode === generatedOtp) {
       setIsPhoneVerified(true);
       setShowOtpInput(false);
       
-      // Update Firestore immediately
+      // Update Firestore
       await setDocumentNonBlocking(doc(db, "users", user!.uid), {
         isPhoneVerified: true,
-        phoneNumber: phoneNumber
+        tempVerificationOtp: null
       }, { merge: true });
 
-      toast({ title: "Verified!", description: "Phone number verified successfully." });
-    } catch (error: any) {
+      toast({ title: "Verified!", description: "Your profile has been successfully verified." });
+    } else {
       toast({ variant: "destructive", title: "Invalid OTP", description: "The code you entered is incorrect." });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -413,58 +400,52 @@ function OnboardingContent() {
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="font-black uppercase tracking-widest text-[10px] text-muted-foreground ml-1">Phone (10 Digits)</Label>
+                <Label className="font-black uppercase tracking-widest text-[10px] text-muted-foreground ml-1">Phone Number (For Donors to call you)</Label>
+                <Input 
+                  name="phone" 
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setPhoneNumber(val);
+                  }}
+                  placeholder="9876543210" 
+                  required 
+                  className="h-12 font-bold"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="font-black uppercase tracking-widest text-[10px] text-muted-foreground ml-1">Identity Verification</Label>
                 <div className="flex gap-2">
                   <Input 
-                    name="phone" 
-                    type="tel"
-                    value={phoneNumber}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                      setPhoneNumber(val);
-                      if (val !== profile?.phoneNumber) setIsPhoneVerified(false);
-                    }}
-                    placeholder="9876543210" 
-                    required 
-                    disabled={isPhoneVerified}
-                    className="h-12 font-bold flex-1"
+                    value={user?.email || ''} 
+                    disabled 
+                    className="h-12 font-bold flex-1 bg-muted/30"
                   />
                   {!isPhoneVerified ? (
-                    <div className="flex gap-2">
-                      <Button 
-                        type="button" 
-                        onClick={() => handleSendOtp('sms')} 
-                        disabled={isSendingOtp || phoneNumber.length !== 10}
-                        className="h-12 font-bold px-3"
-                      >
-                        {isSendingOtp ? <Loader2 className="h-4 w-4 animate-spin" /> : "Verify SMS"}
-                      </Button>
-                      <Button 
-                        type="button" 
-                        variant="secondary"
-                        onClick={() => handleSendOtp('whatsapp')} 
-                        disabled={isSendingOtp || phoneNumber.length !== 10}
-                        className="h-12 font-bold px-3 bg-green-500 hover:bg-green-600 text-white border-none"
-                      >
-                        WhatsApp
-                      </Button>
-                    </div>
+                    <Button 
+                      type="button" 
+                      onClick={handleSendOtp} 
+                      disabled={isSendingOtp}
+                      className="h-12 font-bold px-4 gap-2"
+                    >
+                      {isSendingOtp ? <Loader2 className="h-4 w-4 animate-spin" /> : <MailCheck className="h-4 w-4" />}
+                      Verify via Email
+                    </Button>
                   ) : (
-                    <div className="h-12 flex items-center px-3 bg-green-50 text-green-600 rounded-md border border-green-200">
-                      <CheckCircle2 className="h-5 w-5" />
+                    <div className="h-12 flex items-center px-4 bg-green-50 text-green-600 rounded-md border border-green-200 font-black text-xs gap-2">
+                      <CheckCircle2 className="h-5 w-5" /> VERIFIED
                     </div>
                   )}
                 </div>
               </div>
               
-              {/* Recaptcha Container */}
-              <div id="recaptcha-container"></div>
-
-              {!isPhoneVerified && phoneNumber.length === 10 && (
+              {!isPhoneVerified && showOtpInput && (
                 <div className="col-span-2 p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-4 animate-in slide-in-from-top-2">
-                  <div className="space-y-2">
-                    <Label className="font-black uppercase tracking-widest text-[10px] text-primary">Enter 6-Digit OTP Manually</Label>
-                    <div className="flex gap-2">
+                  <div className="space-y-2 text-center">
+                    <Label className="font-black uppercase tracking-widest text-[10px] text-primary">Enter 6-Digit Email Code</Label>
+                    <div className="flex gap-2 max-w-xs mx-auto">
                       <Input 
                         value={otpCode}
                         onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -473,14 +454,7 @@ function OnboardingContent() {
                       />
                       <Button type="button" onClick={handleVerifyOtp} className="h-12 font-black px-6">Confirm</Button>
                     </div>
-                  </div>
-                  
-                  <div className="pt-2 border-t border-primary/10 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 bg-primary rounded-full animate-ping" />
-                      <p className="text-[10px] font-bold text-primary">Or use the link sent to your phone</p>
-                    </div>
-                    <button type="button" onClick={() => handleSendOtp('sms')} className="text-[10px] font-bold text-muted-foreground hover:text-primary underline">Resend Code</button>
+                    <p className="text-[10px] font-bold text-muted-foreground mt-2">Check your inbox (and spam folder) for the code.</p>
                   </div>
                 </div>
               )}
