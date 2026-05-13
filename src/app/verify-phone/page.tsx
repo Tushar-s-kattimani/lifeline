@@ -56,10 +56,10 @@ function VerifyPhoneContent() {
     try {
       const userRef = doc(db, "users", uid!);
       const userSnap = await getDoc(userRef);
-      if (userSnap.exists() && userSnap.data().tempVerificationPassword === otp) {
+      if (userSnap.exists() && userSnap.data().tempVerificationOtp === otp) {
         await setDocumentNonBlocking(userRef, {
           isPhoneVerified: true,
-          tempVerificationPassword: null,
+          tempVerificationOtp: null,
           verificationProof: otp
         }, { merge: true });
         setIsSuccess(true);
