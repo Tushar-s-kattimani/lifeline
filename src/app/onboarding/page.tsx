@@ -11,8 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useUser, useFirestore, useDoc, useMemoFirebase, useAuth, setDocumentNonBlocking } from "@/firebase";
 import { doc, serverTimestamp } from "firebase/firestore";
+import { 
+  RecaptchaVerifier, 
+  ConfirmationResult,
+  linkWithPhoneNumber
+} from "firebase/auth";
 import { signOut, sendEmailVerification } from "firebase/auth";
-import { HeartPulse, CheckCircle2, Loader2, MapPin, Search, Navigation, Building2, User, ChevronLeft, Mail, RefreshCw, LogOut } from "lucide-react";
+import { HeartPulse, CheckCircle2, Loader2, MapPin, Search, Navigation, Building2, User, ChevronLeft, Mail, RefreshCw, LogOut, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { sendOTPAction } from "@/lib/actions";
 
@@ -38,9 +43,10 @@ function OnboardingContent() {
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [otpCode, setOtpCode] = useState("");
-  const [generatedOtp, setGeneratedOtp] = useState("");
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+  const [recaptchaVerifier, setRecaptchaVerifier] = useState<RecaptchaVerifier | null>(null);
 
   const userRef = useMemoFirebase(() => (db && user ? doc(db, "users", user.uid) : null), [db, user]);
   const { data: profile, isLoading: isProfileLoading } = useDoc(userRef);
@@ -88,75 +94,77 @@ function OnboardingContent() {
   }, [profile, isInitialized]);
 
   const handleSendOtp = async (method: 'sms' | 'whatsapp' = 'sms') => {
-    if (!user || !db) return;
+    if (!auth || !user || !phoneNumber) return;
     if (phoneNumber.length !== 10) {
       toast({ variant: "destructive", title: "Invalid Phone", description: "Enter 10 digits first." });
       return;
     }
     
     setIsSendingOtp(true);
-    // Generate a 4-digit password for the link and a 6-digit OTP for the app
-    const accessPassword = Math.floor(1000 + Math.random() * 9000).toString();
-    const verificationOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(verificationOtp); 
-    
     try {
-      // Save both to Firestore
-      await setDocumentNonBlocking(doc(db, "users", user.uid), {
-        tempAccessPassword: accessPassword,
-        tempVerificationOtp: verificationOtp,
-        phoneNumber: phoneNumber,
-        isPhoneVerified: false
-      }, { merge: true });
+      // Initialize Recaptcha
+      let verifier = recaptchaVerifier;
+      if (!verifier) {
+        verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible',
+          callback: () => {
+            console.log('Recaptcha verified');
+          }
+        });
+        setRecaptchaVerifier(verifier);
+      }
 
-      // Create the secure verification link
-      const baseUrl = window.location.origin.replace('localhost', '10.41.186.215').replace('127.0.0.1', '10.41.186.215');
-      const verifyLink = `${baseUrl}/verify-phone?uid=${user.uid}`;
-      const message = `LifeLine Secure Verification:\n\nLink: ${verifyLink}\n\nAccess Password: ${accessPassword}`;
-      
       const fullNumber = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
-      const type = method;
-
-      // Call the server action to send the message automatically (Twilio)
-      const result = await sendOTPAction(fullNumber, message, type);
       
-      if (result.success) {
-        if (result.simulated) {
-          toast({ 
-            title: `${type.toUpperCase()} Sent (Simulated)`, 
-            description: "Check your terminal to see the verification link." 
-          });
-        } else {
-          toast({ 
-            title: `${type.toUpperCase()} Sent!`, 
-            description: `A secure verification link was sent to your ${type === 'sms' ? 'phone' : 'WhatsApp'}.` 
-          });
-        }
+      // Use Firebase Phone Auth to send the code
+      // linkWithPhoneNumber adds the phone to the existing user profile
+      const result = await linkWithPhoneNumber(user, fullNumber, verifier);
+      setConfirmationResult(result);
+      
+      toast({ 
+        title: "OTP Sent!", 
+        description: "A free Firebase verification code was sent to your phone via SMS." 
+      });
+    } catch (error: any) {
+      console.error(error);
+      if (error.code === 'auth/provider-already-linked') {
+        setIsPhoneVerified(true);
+        toast({ title: "Already Verified", description: "This phone number is already linked to your account." });
       } else {
         toast({ 
           variant: "destructive", 
           title: "Sending Failed", 
-          description: "Could not send the message. Please check your network or try again." 
+          description: error.message || "Could not send verification code." 
         });
       }
-    } catch (error) {
-      console.error(error);
-      toast({ variant: "destructive", title: "Error", description: "Failed to process verification request." });
     } finally {
       setIsSendingOtp(false);
     }
   };
 
-
-  const handleVerifyOtp = () => {
-    if (otpCode === generatedOtp) {
+  const handleVerifyOtp = async () => {
+    if (!confirmationResult || !otpCode) return;
+    
+    try {
+      setIsSubmitting(true);
+      await confirmationResult.confirm(otpCode);
       setIsPhoneVerified(true);
       setShowOtpInput(false);
-      toast({ title: "Verified!", description: "Your phone number has been verified successfully." });
-    } else {
+      
+      // Update Firestore immediately
+      await setDocumentNonBlocking(doc(db, "users", user!.uid), {
+        isPhoneVerified: true,
+        phoneNumber: phoneNumber
+      }, { merge: true });
+
+      toast({ title: "Verified!", description: "Phone number verified successfully." });
+    } catch (error: any) {
       toast({ variant: "destructive", title: "Invalid OTP", description: "The code you entered is incorrect." });
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
 
   const handleLogout = async () => {
     if (!auth) return;
@@ -449,6 +457,9 @@ function OnboardingContent() {
                 </div>
               </div>
               
+              {/* Recaptcha Container */}
+              <div id="recaptcha-container"></div>
+
               {!isPhoneVerified && phoneNumber.length === 10 && (
                 <div className="col-span-2 p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-4 animate-in slide-in-from-top-2">
                   <div className="space-y-2">
