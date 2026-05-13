@@ -230,7 +230,7 @@ function OnboardingContent() {
     setIsSubmitting(true);
     const formData = new FormData(e.currentTarget);
     const name = formData.get("name") as string;
-    const phoneInput = (formData.get("phone") as string).replace(/\D/g, '');
+    const phoneInput = phoneNumber.replace(/\D/g, '');
 
     if (phoneInput.length !== 10) {
       toast({
