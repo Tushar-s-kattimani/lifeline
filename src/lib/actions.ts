@@ -67,32 +67,17 @@ export async function requestBlood(prevState: State, formData: FormData): Promis
   }
 }
 
-export async function sendOTPAction(phoneNumber: string, message: string, type: 'sms' | 'whatsapp' = 'sms') {
+export async function sendOTPAction(phoneNumber: string, code: string) {
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
   const fromNumber = process.env.TWILIO_PHONE_NUMBER;
-  const fromWhatsApp = process.env.TWILIO_WHATSAPP_NUMBER; // e.g., whatsapp:+14155238886
 
-  // Robust phone number formatting
-  let formattedNumber = phoneNumber.trim();
-  if (!formattedNumber.startsWith('+')) {
-    // If it's a 10-digit number, default to +91
-    if (formattedNumber.length === 10) {
-      formattedNumber = `+91${formattedNumber}`;
-    } else {
-      // Otherwise just prepend +
-      formattedNumber = `+${formattedNumber.replace(/\D/g, '')}`;
-    }
-  }
-  
-  const fullNumber = type === 'whatsapp' ? `whatsapp:${formattedNumber}` : formattedNumber;
-  const sender = type === 'whatsapp' ? fromWhatsApp : fromNumber;
+  const fullNumber = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
 
-  if (!accountSid || !authToken || !sender) {
-    console.warn(`--- TWILIO ${type.toUpperCase()} SIMULATION MODE ---`);
-    console.warn(`REASON: ${!sender ? 'Missing Twilio Phone Number' : 'Missing credentials'}`);
-    console.warn(`TO: ${fullNumber}`);
-    console.warn(`MESSAGE: ${message}`);
+  if (!accountSid || !authToken || !fromNumber) {
+    console.warn('--- TWILIO SIMULATION ---');
+    console.warn(`SENDING OTP ${code} TO ${fullNumber}`);
+    console.warn('To enable real SMS, add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER to your .env file.');
     return { success: true, simulated: true };
   }
 
@@ -105,58 +90,14 @@ export async function sendOTPAction(phoneNumber: string, message: string, type: 
       },
       body: new URLSearchParams({
         To: fullNumber,
-        From: sender,
-        Body: message,
+        From: fromNumber,
+        Body: `Your LifeLine verification code is: ${code}. Please do not share this with anyone.`,
       }),
     });
 
     return { success: res.ok };
   } catch (e) {
     console.error('Twilio Error:', e);
-    return { success: false };
-  }
-}
-
-import { Resend } from 'resend';
-
-export async function sendEmailOTPAction(email: string, code: string) {
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  
-  if (!process.env.RESEND_API_KEY) {
-    console.warn('!!! RESEND_API_KEY IS MISSING !!! Check your .env file and RESTART the server.');
-    console.warn('--- EMAIL SIMULATION ---');
-    console.warn(`SENDING OTP ${code} TO ${email}`);
-    return { success: true, simulated: true };
-  }
-
-  try {
-    console.log(`[Resend] Attempting to send OTP to: ${email}`);
-    if (!email || !email.includes('@')) {
-      console.error('[Resend] Invalid email address provided.');
-      return { success: false };
-    }
-    const data = await resend.emails.send({
-      from: 'LifeLine <onboarding@resend.dev>',
-      to: email,
-      subject: 'Your LifeLine Verification Code',
-      html: `
-        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px; max-width: 500px;">
-          <h2 style="color: #e11d48;">LifeLine Verification</h2>
-          <p>Hello,</p>
-          <p>Thank you for joining the LifeLine community. Use the code below to verify your account:</p>
-          <div style="background: #f4f4f5; padding: 20px; text-align: center; border-radius: 10px; margin: 20px 0;">
-            <span style="font-size: 32px; font-weight: 900; letter-spacing: 5px; color: #18181b;">${code}</span>
-          </div>
-          <p style="font-size: 12px; color: #71717a;">If you did not request this code, please ignore this email.</p>
-          <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-          <p style="font-size: 10px; color: #a1a1aa; text-align: center;">"Your blood is the bridge between hope and a heartbeat."</p>
-        </div>
-      `
-    });
-    console.log('Resend Response Data:', data);
-    return { success: true };
-  } catch (e) {
-    console.error('CRITICAL Resend Error:', e);
     return { success: false };
   }
 }

@@ -12,9 +12,9 @@ import { Switch } from "@/components/ui/switch";
 import { useUser, useFirestore, useDoc, useMemoFirebase, useAuth, setDocumentNonBlocking } from "@/firebase";
 import { doc, serverTimestamp } from "firebase/firestore";
 import { signOut, sendEmailVerification } from "firebase/auth";
-import { HeartPulse, CheckCircle2, Loader2, MapPin, Search, Navigation, Building2, User, ChevronLeft, Mail, RefreshCw, LogOut, MailCheck } from "lucide-react";
+import { HeartPulse, CheckCircle2, Loader2, MapPin, Search, Navigation, Building2, User, ChevronLeft, Mail, RefreshCw, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { sendEmailOTPAction } from "@/lib/actions";
+import { sendOTPAction } from "@/lib/actions";
 
 function OnboardingContent() {
   const router = useRouter();
@@ -80,77 +80,72 @@ function OnboardingContent() {
       }
       if (profile.phoneNumber) {
         setPhoneNumber(profile.phoneNumber);
+        // Assume verified if it exists in profile for now, or check a field
         setIsPhoneVerified(profile.isPhoneVerified || false);
       }
       setIsInitialized(true);
     }
   }, [profile, isInitialized]);
 
-  const handleSendOtp = async () => {
-    if (!user || !db || !user.email) return;
+  const handleSendOtp = async (method: 'sms' | 'whatsapp' = 'sms') => {
+    if (!user || !db) return;
+    if (phoneNumber.length !== 10) {
+      toast({ variant: "destructive", title: "Invalid Phone", description: "Enter 10 digits first." });
+      return;
+    }
     
     setIsSendingOtp(true);
-    // Generate a 6-digit OTP
+    // Generate a 4-digit password for the link and a 6-digit OTP for the app
+    const accessPassword = Math.floor(1000 + Math.random() * 9000).toString();
     const verificationOtp = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedOtp(verificationOtp); 
     
     try {
-      // Save OTP to Firestore temporarily
+      // Save both to Firestore
       await setDocumentNonBlocking(doc(db, "users", user.uid), {
+        tempAccessPassword: accessPassword,
         tempVerificationOtp: verificationOtp,
+        phoneNumber: phoneNumber,
         isPhoneVerified: false
       }, { merge: true });
 
-      // Send the Email OTP
-      const result = await sendEmailOTPAction(user.email, verificationOtp);
+      // Create the secure verification link
+      const baseUrl = window.location.origin.replace('localhost', '10.41.186.215').replace('127.0.0.1', '10.41.186.215');
+      const verifyLink = `${baseUrl}/verify-phone?uid=${user.uid}`;
+      const message = `LifeLine Secure Verification:\n\nLink: ${verifyLink}\n\nAccess Password: ${accessPassword}`;
       
-      if (result.success) {
-        setShowOtpInput(true);
-        if (result.simulated) {
-          toast({ 
-            title: "Email Sent (Simulated)", 
-            description: `Check terminal. Code: ${verificationOtp}` 
-          });
-        } else {
-          toast({ 
-            title: "Email Sent!", 
-            description: "A 6-digit code was sent to your email address." 
-          });
-        }
+      const fullNumber = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
+
+      if (method === 'whatsapp') {
+        window.open(`https://wa.me/${fullNumber.replace('+', '')}?text=${encodeURIComponent(message)}`, '_blank');
       } else {
-        toast({ 
-          variant: "destructive", 
-          title: "Sending Failed", 
-          description: "Could not send the email. Please check your network or try again." 
-        });
+        const smsUrl = /iPad|iPhone|iPod/.test(navigator.userAgent) 
+          ? `sms:${fullNumber}&body=${encodeURIComponent(message)}`
+          : `sms:${fullNumber}?body=${encodeURIComponent(message)}`;
+        window.open(smsUrl, '_blank');
       }
-    } catch (error) {
-      console.error(error);
-      toast({ variant: "destructive", title: "Error", description: "Failed to process verification request." });
-    } finally {
+      
       setIsSendingOtp(false);
+      toast({
+        title: "Security Link Sent",
+        description: "Please check your messages for the link and password.",
+      });
+    } catch (e) {
+      setIsSendingOtp(false);
+      toast({ variant: "destructive", title: "Error", description: "Failed to initialize secure verification." });
     }
   };
 
-  const handleVerifyOtp = async () => {
-    if (!otpCode || !generatedOtp) return;
-    
+
+  const handleVerifyOtp = () => {
     if (otpCode === generatedOtp) {
       setIsPhoneVerified(true);
       setShowOtpInput(false);
-      
-      // Update Firestore
-      await setDocumentNonBlocking(doc(db, "users", user!.uid), {
-        isPhoneVerified: true,
-        tempVerificationOtp: null
-      }, { merge: true });
-
-      toast({ title: "Verified!", description: "Your phone number has been successfully verified." });
+      toast({ title: "Verified!", description: "Your phone number has been verified successfully." });
     } else {
       toast({ variant: "destructive", title: "Invalid OTP", description: "The code you entered is incorrect." });
     }
   };
-
 
   const handleLogout = async () => {
     if (!auth) return;
@@ -230,7 +225,7 @@ function OnboardingContent() {
     }
 
     if (!isPhoneVerified) {
-      toast({ variant: "destructive", title: "Verification Required", description: "Please verify your identity via the email link first." });
+      toast({ variant: "destructive", title: "Verification Required", description: "Please verify your phone number via OTP first." });
       return;
     }
 
@@ -399,75 +394,71 @@ function OnboardingContent() {
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="font-black uppercase tracking-widest text-[10px] text-muted-foreground ml-1">Phone Number (For Donors to call you)</Label>
-                <Input 
-                  name="phone" 
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                    setPhoneNumber(val);
-                    if (val !== profile?.phoneNumber) {
-                      setIsPhoneVerified(false);
-                    }
-                  }}
-                  placeholder="9876543210" 
-                  required 
-                  className="h-12 font-bold"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="font-black uppercase tracking-widest text-[10px] text-muted-foreground ml-1">Identity Verification</Label>
+                <Label className="font-black uppercase tracking-widest text-[10px] text-muted-foreground ml-1">Phone (10 Digits)</Label>
                 <div className="flex gap-2">
                   <Input 
-                    value={user?.email || ''} 
-                    disabled 
-                    className="h-12 font-bold flex-1 bg-muted/30"
+                    name="phone" 
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setPhoneNumber(val);
+                      if (val !== profile?.phoneNumber) setIsPhoneVerified(false);
+                    }}
+                    placeholder="9876543210" 
+                    required 
+                    disabled={isPhoneVerified}
+                    className="h-12 font-bold flex-1"
                   />
-                    {!isPhoneVerified ? (
+                  {!isPhoneVerified ? (
+                    <div className="flex gap-2">
                       <Button 
                         type="button" 
-                        onClick={handleSendOtp} 
-                        disabled={isSendingOtp}
-                        className="h-12 font-bold px-4 gap-2"
+                        onClick={() => handleSendOtp('sms')} 
+                        disabled={isSendingOtp || phoneNumber.length !== 10}
+                        className="h-12 font-bold px-3"
                       >
-                        {isSendingOtp ? <Loader2 className="h-4 w-4 animate-spin" /> : <MailCheck className="h-4 w-4" />}
-                        Verify via Email Code
+                        {isSendingOtp ? <Loader2 className="h-4 w-4 animate-spin" /> : "Verify SMS"}
                       </Button>
-                    ) : (
-                      <div className="h-12 flex items-center px-4 bg-green-50 text-green-600 rounded-md border border-green-200 font-black text-xs gap-2">
-                        <CheckCircle2 className="h-5 w-5" /> VERIFIED
-                      </div>
-                    )}
-                  </div>
+                      <Button 
+                        type="button" 
+                        variant="secondary"
+                        onClick={() => handleSendOtp('whatsapp')} 
+                        disabled={isSendingOtp || phoneNumber.length !== 10}
+                        className="h-12 font-bold px-3 bg-green-500 hover:bg-green-600 text-white border-none"
+                      >
+                        WhatsApp
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="h-12 flex items-center px-3 bg-green-50 text-green-600 rounded-md border border-green-200">
+                      <CheckCircle2 className="h-5 w-5" />
+                    </div>
+                  )}
                 </div>
-                
-                {!isPhoneVerified && showOtpInput && (
-                <div className="col-span-2 p-6 bg-primary/5 border-2 border-dashed border-primary/20 rounded-3xl space-y-4 animate-in slide-in-from-top-2 text-center">
+              </div>
+              
+              {!isPhoneVerified && phoneNumber.length === 10 && (
+                <div className="col-span-2 p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-4 animate-in slide-in-from-top-2">
                   <div className="space-y-2">
-                    <Label className="font-black uppercase tracking-widest text-xs text-primary">Enter 6-Digit Email Code</Label>
-                    <div className="flex gap-2 max-w-xs mx-auto">
+                    <Label className="font-black uppercase tracking-widest text-[10px] text-primary">Enter 6-Digit OTP Manually</Label>
+                    <div className="flex gap-2">
                       <Input 
                         value={otpCode}
                         onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                         placeholder="· · · · · ·"
-                        className="h-12 text-center text-3xl tracking-[0.5em] font-black flex-1"
+                        className="h-12 text-center text-2xl tracking-[0.5em] font-black flex-1"
                       />
-                      <Button type="button" onClick={handleVerifyOtp} className="h-12 font-black px-6 shadow-md">Confirm</Button>
+                      <Button type="button" onClick={handleVerifyOtp} className="h-12 font-black px-6">Confirm</Button>
                     </div>
-                    
-                    <div className="flex justify-center pt-2">
-                      <Button 
-                        variant="ghost" 
-                        onClick={handleSendOtp} 
-                        disabled={isSendingOtp}
-                        className="font-bold text-muted-foreground text-xs hover:text-primary underline h-auto p-0"
-                      >
-                        {isSendingOtp ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                        Resend Code
-                      </Button>
+                  </div>
+                  
+                  <div className="pt-2 border-t border-primary/10 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 bg-primary rounded-full animate-ping" />
+                      <p className="text-[10px] font-bold text-primary">Or use the link sent to your phone</p>
                     </div>
+                    <button type="button" onClick={() => handleSendOtp('sms')} className="text-[10px] font-bold text-muted-foreground hover:text-primary underline">Resend Code</button>
                   </div>
                 </div>
               )}
@@ -527,7 +518,7 @@ function OnboardingContent() {
               </div>
             )}
 
-            <Button type="submit" className="w-full h-14 text-xl font-black shadow-lg heartbeat" disabled={isSubmitting || !location || !isPhoneVerified}>
+            <Button type="submit" className="w-full h-14 text-xl font-black shadow-lg heartbeat" disabled={isSubmitting || !location}>
               {isSubmitting ? <Loader2 className="h-6 w-6 animate-spin" /> : (profile ? "Update Profile" : "Become a Hero")}
             </Button>
           </form>
