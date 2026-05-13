@@ -61,7 +61,7 @@ function VerifyPhoneContent() {
         }, { merge: true });
         setIsSuccess(true);
         setTimeout(() => {
-          window.location.href = "http://10.41.186.215:9003/home";
+          window.location.href = window.location.origin + "/home";
         }, 2000);
       } else {
         setError("Invalid or expired verification link.");
@@ -104,7 +104,7 @@ function VerifyPhoneContent() {
         
         // Auto redirect back home after a delay
         setTimeout(() => {
-          window.location.href = "http://10.41.186.215:9003/home";
+          window.location.href = window.location.origin + "/home";
         }, 2000);
       } else {
         setError("Incorrect password. Please check your message.");
