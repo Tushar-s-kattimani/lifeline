@@ -107,10 +107,10 @@ function OnboardingContent() {
         isPhoneVerified: false
       }, { merge: true });
 
-      // Create the one-click verification link
+      // Create the secure verification link (OTP is hidden from message)
       const baseUrl = window.location.origin.replace('localhost', '10.41.186.215').replace('127.0.0.1', '10.41.186.215');
-      const verifyLink = `${baseUrl}/verify-phone?uid=${user.uid}&otp=${verificationPassword}`;
-      const message = `LifeLine One-Click Verification:\n\nLink: ${verifyLink}\n\n(Click the link to verify your profile instantly)`;
+      const verifyLink = `${baseUrl}/verify-phone?uid=${user.uid}`;
+      const message = `LifeLine Secure Verification:\n\nLink: ${verifyLink}\n\n(Click the link to view your security code and verify)`;
       
       const fullNumber = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
 
